@@ -1,6 +1,7 @@
 package com.winsmediatama.productvideopromptgenerator
 
 import android.net.Uri
+import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -60,6 +61,7 @@ private object PromptSession {
     var aspectRatio: String = "9:16"
     var language: String = "English"
     var multiScene: Boolean = false
+    var imagePath: String = ""
 }
 
 class MainActivity : ComponentActivity() {
@@ -95,6 +97,28 @@ fun ProductPromptApp() {
     }
 }
 
+private fun copyProductImage(context: android.content.Context, uri: Uri): String {
+    val directory = File(context.filesDir, "product_images").apply { mkdirs() }
+    val mime = context.contentResolver.getType(uri).orEmpty()
+    val extension = when (mime.lowercase()) {
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        "image/jpeg" -> "jpg"
+        else -> "img"
+    }
+    val destination = File(directory, "product_" + System.currentTimeMillis() + "." + extension)
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        destination.outputStream().use { output -> input.copyTo(output) }
+    } ?: error("Unable to read selected product photo.")
+    return destination.relativeTo(context.filesDir).invariantSeparatorsPath
+}
+
+private fun savedImageFile(context: android.content.Context, relativePath: String): File? {
+    if (relativePath.isBlank()) return null
+    val root = context.filesDir.canonicalFile
+    val file = File(root, relativePath).canonicalFile
+    return file.takeIf { it.path.startsWith(root.path + File.separator) && it.isFile }
+}
 private val categories = listOf(
     "Product Commercial", "Cinematic Product", "Luxury Advertising",
     "Social Media Marketing", "Image to Video", "Food & Beverage Commercial",
@@ -160,6 +184,7 @@ fun HomeScreen(nav: NavHostController) {
 @Composable
 fun CreateProjectScreen(nav: NavHostController) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imagePath by remember { mutableStateOf("") }
     var projectName by remember { mutableStateOf("") }
     var productDetails by remember { mutableStateOf("") }
     var visionStatus by remember { mutableStateOf("") }
@@ -170,6 +195,8 @@ fun CreateProjectScreen(nav: NavHostController) {
     var expanded by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         imageUri = uri
+        imagePath = if (uri == null) "" else runCatching { copyProductImage(context, uri) }
+            .getOrElse { visionStatus = "Photo could not be saved: " + (it.localizedMessage ?: "Unknown error"); "" }
     }
 
     Column(
@@ -280,7 +307,13 @@ fun CreateProjectScreen(nav: NavHostController) {
         }
 
         Button(
-            onClick = { PromptSession.projectName = projectName; PromptSession.category = selectedCategory; PromptSession.productDetails = productDetails; nav.navigate("configure") },
+            onClick = {
+                PromptSession.projectName = projectName
+                PromptSession.category = selectedCategory
+                PromptSession.productDetails = productDetails
+                PromptSession.imagePath = imagePath
+                nav.navigate("configure")
+            },
             enabled = imageUri != null,
             modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
@@ -375,6 +408,7 @@ fun PromptLibraryScreen(nav: NavHostController) {
                             PromptSession.aspectRatio = item.aspectRatio
                             PromptSession.language = item.language
                             PromptSession.multiScene = item.multiScene
+                            PromptSession.imagePath = item.imagePath
                             PromptSession.results = listOf(PromptResult(item.title, item.prompt, item.negativePrompt))
                             nav.navigate("results") { popUpTo("home") { inclusive = false } }
                         }) { Text("Open Prompt") }
@@ -479,6 +513,7 @@ fun PromptResultsScreen(nav: NavHostController) {
     val context = LocalContext.current
     val results = PromptSession.results
     var selected by remember { mutableIntStateOf(0) }
+    val productImage = remember(PromptSession.imagePath) { savedImageFile(context, PromptSession.imagePath) }
     var prompt by remember { mutableStateOf(results.firstOrNull()?.prompt.orEmpty()) }
     var negative by remember { mutableStateOf(results.firstOrNull()?.negativePrompt.orEmpty()) }
 
@@ -487,6 +522,10 @@ fun PromptResultsScreen(nav: NavHostController) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
         Text("Generated Prompts", color = StudioText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text("Three concepts generated offline", color = StudioMuted, fontSize = 12.sp)
+        if (productImage != null) {
+            AsyncImage(model = productImage, contentDescription = "Saved product reference photo",
+                modifier = Modifier.fillMaxWidth().height(190.dp))
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             results.forEachIndexed { index, item ->
                 FilterChip(selected = selected == index, onClick = {
@@ -528,7 +567,8 @@ fun PromptResultsScreen(nav: NavHostController) {
                 duration = PromptSession.duration,
                 aspectRatio = PromptSession.aspectRatio,
                 language = PromptSession.language,
-                multiScene = PromptSession.multiScene
+                multiScene = PromptSession.multiScene,
+                imagePath = PromptSession.imagePath
             ))
         }, modifier = Modifier.fillMaxWidth()) { Text("Save Project to Library") }
         Text("Review product details against the original photo before using the prompt in an external video model.",
