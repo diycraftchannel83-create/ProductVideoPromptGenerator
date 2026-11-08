@@ -11,7 +11,16 @@ data class SavedPrompt(
     val title: String,
     val prompt: String,
     val negativePrompt: String,
-    val savedAt: Long
+    val savedAt: Long,
+    val productDetails: String = "",
+    val style: String = "Cinematic",
+    val camera: String = "Slow dolly-in",
+    val lighting: String = "Soft studio lighting",
+    val background: String = "Minimal premium studio",
+    val duration: String = "8 seconds",
+    val aspectRatio: String = "9:16",
+    val language: String = "English",
+    val multiScene: Boolean = false
 )
 
 object SavedPromptStore {
@@ -31,7 +40,16 @@ object SavedPromptStore {
                     title = item.optString("title"),
                     prompt = item.optString("prompt"),
                     negativePrompt = item.optString("negativePrompt"),
-                    savedAt = item.optLong("savedAt")
+                    savedAt = item.optLong("savedAt"),
+                    productDetails = item.optString("productDetails"),
+                    style = item.optString("style", "Cinematic"),
+                    camera = item.optString("camera", "Slow dolly-in"),
+                    lighting = item.optString("lighting", "Soft studio lighting"),
+                    background = item.optString("background", "Minimal premium studio"),
+                    duration = item.optString("duration", "8 seconds"),
+                    aspectRatio = item.optString("aspectRatio", "9:16"),
+                    language = item.optString("language", "English"),
+                    multiScene = item.optBoolean("multiScene", false)
                 )
             }.sortedByDescending { it.savedAt }
         }.getOrDefault(emptyList())
@@ -50,6 +68,15 @@ object SavedPromptStore {
                 put("prompt", saved.prompt)
                 put("negativePrompt", saved.negativePrompt)
                 put("savedAt", saved.savedAt)
+                put("productDetails", saved.productDetails)
+                put("style", saved.style)
+                put("camera", saved.camera)
+                put("lighting", saved.lighting)
+                put("background", saved.background)
+                put("duration", saved.duration)
+                put("aspectRatio", saved.aspectRatio)
+                put("language", saved.language)
+                put("multiScene", saved.multiScene)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).apply()
