@@ -330,6 +330,9 @@ fun PromptLibraryScreen(nav: NavHostController) {
     val scope = rememberCoroutineScope()
     var saved by remember { mutableStateOf(SavedPromptStore.getAll(context)) }
     var backupStatus by remember { mutableStateOf("") }
+    var renameTarget by remember { mutableStateOf<SavedPrompt?>(null) }
+    var renameName by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<SavedPrompt?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) {
             scope.launch {
@@ -441,31 +444,71 @@ fun PromptLibraryScreen(nav: NavHostController) {
                     Text(item.name.ifBlank { "Untitled Project" }, color = StudioText, fontWeight = FontWeight.Bold)
                     Text("${item.category} • ${item.title}", color = StudioCyan, fontSize = 12.sp)
                     Text(item.prompt, color = StudioMuted, fontSize = 12.sp, maxLines = 3)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = {
-                            PromptSession.projectName = item.name
-                            PromptSession.category = item.category
-                            PromptSession.productDetails = item.productDetails
-                            PromptSession.style = item.style
-                            PromptSession.camera = item.camera
-                            PromptSession.lighting = item.lighting
-                            PromptSession.background = item.background
-                            PromptSession.duration = item.duration
-                            PromptSession.aspectRatio = item.aspectRatio
-                            PromptSession.language = item.language
-                            PromptSession.multiScene = item.multiScene
-                            PromptSession.imagePath = item.imagePath
-                            PromptSession.results = listOf(PromptResult(item.title, item.prompt, item.negativePrompt))
-                            nav.navigate("results") { popUpTo("home") { inclusive = false } }
-                        }) { Text("Open Prompt") }
+                    Button(onClick = {
+                        PromptSession.projectName = item.name
+                        PromptSession.category = item.category
+                        PromptSession.productDetails = item.productDetails
+                        PromptSession.style = item.style
+                        PromptSession.camera = item.camera
+                        PromptSession.lighting = item.lighting
+                        PromptSession.background = item.background
+                        PromptSession.duration = item.duration
+                        PromptSession.aspectRatio = item.aspectRatio
+                        PromptSession.language = item.language
+                        PromptSession.multiScene = item.multiScene
+                        PromptSession.imagePath = item.imagePath
+                        PromptSession.results = listOf(PromptResult(item.title, item.prompt, item.negativePrompt))
+                        nav.navigate("results") { popUpTo("home") { inclusive = false } }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Open Prompt") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(onClick = { renameTarget = item; renameName = item.name }, modifier = Modifier.weight(1f)) { Text("Rename") }
                         OutlinedButton(onClick = {
-                            SavedPromptStore.delete(context, item.id)
+                            SavedPromptStore.duplicate(context, item.id)
                             saved = SavedPromptStore.getAll(context)
-                        }) { Text("Delete") }
+                            backupStatus = "Project duplicated."
+                        }, modifier = Modifier.weight(1f)) { Text("Duplicate") }
+                        OutlinedButton(onClick = { deleteTarget = item }, modifier = Modifier.weight(1f)) { Text("Delete") }
                     }
                 }
             }
         }
+    }
+    if (renameTarget != null) {
+        AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text("Rename Project") },
+            text = {
+                OutlinedTextField(value = renameName, onValueChange = { renameName = it }, singleLine = true,
+                    label = { Text("Project name") }, modifier = Modifier.fillMaxWidth())
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = renameTarget
+                    if (target != null && SavedPromptStore.rename(context, target.id, renameName)) {
+                        saved = SavedPromptStore.getAll(context)
+                        backupStatus = "Project renamed."
+                        renameTarget = null
+                    } else { backupStatus = "Project name cannot be empty." }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { renameTarget = null }) { Text("Cancel") } }
+        )
+    }
+    if (deleteTarget != null) {
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete Project?") },
+            text = { Text("Delete project \"" + (deleteTarget?.name?.ifBlank { "Untitled Project" } ?: "") + "\" from your library? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteTarget?.let { SavedPromptStore.delete(context, it.id) }
+                    saved = SavedPromptStore.getAll(context)
+                    backupStatus = "Project deleted."
+                    deleteTarget = null
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } }
+        )
     }
 }
 @Composable
