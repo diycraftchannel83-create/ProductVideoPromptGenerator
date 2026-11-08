@@ -20,7 +20,8 @@ data class SavedPrompt(
     val duration: String = "8 seconds",
     val aspectRatio: String = "9:16",
     val language: String = "English",
-    val multiScene: Boolean = false
+    val multiScene: Boolean = false,
+    val imagePath: String = ""
 )
 
 object SavedPromptStore {
@@ -49,7 +50,8 @@ object SavedPromptStore {
                     duration = item.optString("duration", "8 seconds"),
                     aspectRatio = item.optString("aspectRatio", "9:16"),
                     language = item.optString("language", "English"),
-                    multiScene = item.optBoolean("multiScene", false)
+                    multiScene = item.optBoolean("multiScene", false),
+                    imagePath = item.optString("imagePath")
                 )
             }.sortedByDescending { it.savedAt }
         }.getOrDefault(emptyList())
@@ -77,6 +79,9 @@ object SavedPromptStore {
                 put("aspectRatio", saved.aspectRatio)
                 put("language", saved.language)
                 put("multiScene", saved.multiScene)
+                put("imagePath", saved.imagePath)
+        put("imagePath", saved.imagePath)
+                put("imagePath", saved.imagePath)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).apply()
@@ -135,7 +140,8 @@ object SavedPromptStore {
             duration = item.optString("duration", "8 seconds"),
             aspectRatio = item.optString("aspectRatio", "9:16"),
             language = item.optString("language", "English"),
-            multiScene = item.optBoolean("multiScene", false)
+            multiScene = item.optBoolean("multiScene", false),
+            imagePath = item.optString("imagePath")
         )
     }
 
