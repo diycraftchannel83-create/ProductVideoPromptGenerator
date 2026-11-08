@@ -46,6 +46,7 @@ private object PromptSession {
     var projectName: String = ""
     var category: String = "Product Commercial"
     var results: List<PromptResult> = emptyList()
+    var productDetails: String = ""
 }
 
 class MainActivity : ComponentActivity() {
@@ -143,11 +144,11 @@ fun HomeScreen(nav: NavHostController) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProjectScreen(nav: NavHostController) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var projectName by remember { mutableStateOf("") }
+    var productDetails by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(categories.first()) }
     var expanded by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -184,6 +185,16 @@ fun CreateProjectScreen(nav: NavHostController) {
         }
 
         OutlinedTextField(
+            value = productDetails,
+            onValueChange = { productDetails = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Visible Product Details (Optional)") },
+            placeholder = { Text("Describe visible color, material, shape, logo or packaging...") },
+            minLines = 2,
+            maxLines = 4
+        )
+
+        OutlinedTextField(
             value = projectName,
             onValueChange = { projectName = it },
             modifier = Modifier.fillMaxWidth(),
@@ -214,12 +225,12 @@ fun CreateProjectScreen(nav: NavHostController) {
         Surface(color = StudioSurface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
                 Text("Generation mode", color = StudioText, fontWeight = FontWeight.SemiBold)
-                Text("Offline templates are available. AI Vision will be connected in Phase 3.", color = StudioMuted, fontSize = 12.sp)
+                Text("Offline generation is ready. Add visible product details above to guide the prompt.", color = StudioMuted, fontSize = 12.sp)
             }
         }
 
         Button(
-            onClick = { PromptSession.projectName = projectName; PromptSession.category = selectedCategory; nav.navigate("configure") },
+            onClick = { PromptSession.projectName = projectName; PromptSession.category = selectedCategory; PromptSession.productDetails = productDetails; nav.navigate("configure") },
             enabled = imageUri != null,
             modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
@@ -279,7 +290,7 @@ fun ConfigurationScreen(nav: NavHostController) {
         }
         Button(onClick = {
             val request = PromptRequest(PromptSession.projectName, PromptSession.category, style, camera, lighting,
-                background, duration, ratio, language, multiScene)
+                background, duration, ratio, language, multiScene, PromptSession.productDetails)
             PromptSession.results = OfflinePromptEngine.generate(request)
             nav.navigate("results")
         }, modifier = Modifier.fillMaxWidth().height(56.dp),
