@@ -16,6 +16,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import com.winsmediatama.productvideopromptgenerator.engine.OfflinePromptEngine
+import com.winsmediatama.productvideopromptgenerator.engine.PromptRequest
+import com.winsmediatama.productvideopromptgenerator.engine.PromptResult
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +41,12 @@ private val StudioCyan = Color(0xFF62E7F5)
 private val StudioViolet = Color(0xFF9B8CFF)
 private val StudioText = Color(0xFFF4F7FF)
 private val StudioMuted = Color(0xFF9AA8C2)
+
+private object PromptSession {
+    var projectName: String = ""
+    var category: String = "Product Commercial"
+    var results: List<PromptResult> = emptyList()
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +72,8 @@ fun ProductPromptApp() {
             NavHost(navController = nav, startDestination = "home") {
                 composable("home") { HomeScreen(nav) }
                 composable("create") { CreateProjectScreen(nav) }
+                composable("configure") { ConfigurationScreen(nav) }
+                composable("results") { PromptResultsScreen(nav) }
                 composable("library") { SimpleScreen("Prompt Library", "Saved prompts will appear here.", nav) }
                 composable("settings") { SimpleScreen("Settings", "Language, theme and AI preferences.", nav) }
             }
@@ -203,7 +218,7 @@ fun CreateProjectScreen(nav: NavHostController) {
         }
 
         Button(
-            onClick = { nav.navigate("library") },
+            onClick = { PromptSession.projectName = projectName; PromptSession.category = selectedCategory; nav.navigate("configure") },
             enabled = imageUri != null,
             modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
@@ -224,5 +239,114 @@ fun SimpleScreen(title: String, subtitle: String, nav: NavHostController) {
         Text(title, color = StudioText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text(subtitle, color = StudioMuted)
         Text("This section will be implemented in the next development phase.", color = StudioMuted, fontSize = 13.sp)
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConfigurationScreen(nav: NavHostController) {
+    var style by remember { mutableStateOf("Cinematic") }
+    var camera by remember { mutableStateOf("Slow dolly-in") }
+    var lighting by remember { mutableStateOf("Soft studio lighting") }
+    var background by remember { mutableStateOf("Minimal premium studio") }
+    var duration by remember { mutableStateOf("8 seconds") }
+    var ratio by remember { mutableStateOf("9:16") }
+    var language by remember { mutableStateOf("English") }
+    var multiScene by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
+        Text("Video Configuration", color = StudioText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Project: " + PromptSession.projectName, color = StudioCyan)
+        PromptChoice("Visual Style", style, listOf("Cinematic", "Commercial", "Luxury", "Minimal", "Realistic")) { style = it }
+        PromptChoice("Camera Movement", camera, listOf("Slow dolly-in", "Orbit shot", "Tracking shot", "Smooth pan", "Crane reveal", "Static macro")) { camera = it }
+        PromptChoice("Lighting", lighting, listOf("Soft studio lighting", "Dramatic rim lighting", "Golden hour", "High-key commercial", "Moody low-key")) { lighting = it }
+        PromptChoice("Background", background, listOf("Minimal premium studio", "Dark luxury studio", "Natural environment", "Modern kitchen", "Urban lifestyle", "Elegant interior")) { background = it }
+        PromptChoice("Duration", duration, listOf("5 seconds", "8 seconds", "10 seconds", "15 seconds", "30 seconds")) { duration = it }
+        PromptChoice("Aspect Ratio", ratio, listOf("9:16", "16:9", "1:1")) { ratio = it }
+        PromptChoice("Prompt Language", language, listOf("English", "Indonesia")) { language = it }
+        Surface(color = StudioSurface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Multi-Scene Storyboard", color = StudioText, fontWeight = FontWeight.SemiBold)
+                    Text("Create a four-part scene sequence", color = StudioMuted, fontSize = 12.sp)
+                }
+                Switch(checked = multiScene, onCheckedChange = { multiScene = it })
+            }
+        }
+        Button(onClick = {
+            val request = PromptRequest(PromptSession.projectName, PromptSession.category, style, camera, lighting,
+                background, duration, ratio, language, multiScene)
+            PromptSession.results = OfflinePromptEngine.generate(request)
+            nav.navigate("results")
+        }, modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
+            shape = RoundedCornerShape(14.dp)) {
+            Text("✦ Generate 3 Prompt Variations", fontWeight = FontWeight.Bold)
+        }
+        Text("Generated locally. No API key or internet required.", color = StudioMuted, fontSize = 11.sp)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PromptChoice(label: String, selected: String, options: List<String>, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(value = selected, onValueChange = {}, readOnly = true,
+            modifier = Modifier.menuAnchor().fillMaxWidth(), label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) })
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(option) }, onClick = { onSelect(option); expanded = false })
+            }
+        }
+    }
+}
+
+@Composable
+fun PromptResultsScreen(nav: NavHostController) {
+    val clipboard = LocalClipboardManager.current
+    val results = PromptSession.results
+    var selected by remember { mutableIntStateOf(0) }
+    var prompt by remember { mutableStateOf(results.firstOrNull()?.prompt.orEmpty()) }
+    var negative by remember { mutableStateOf(results.firstOrNull()?.negativePrompt.orEmpty()) }
+
+    Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
+        Text("Generated Prompts", color = StudioText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Three concepts generated offline", color = StudioMuted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            results.forEachIndexed { index, item ->
+                FilterChip(selected = selected == index, onClick = {
+                    selected = index
+                    prompt = item.prompt
+                    negative = item.negativePrompt
+                }, label = { Text(item.title) })
+            }
+        }
+        Text("VIDEO PROMPT", color = StudioCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(value = prompt, onValueChange = { prompt = it }, modifier = Modifier.fillMaxWidth(),
+            minLines = 8, label = { Text("Edit your prompt") })
+        Button(onClick = { clipboard.setText(AnnotatedString(prompt)) }, modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground)) {
+            Text("Copy Video Prompt", fontWeight = FontWeight.Bold)
+        }
+        Text("NEGATIVE PROMPT", color = StudioViolet, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(value = negative, onValueChange = { negative = it }, modifier = Modifier.fillMaxWidth(), minLines = 4)
+        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(negative)) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Copy Negative Prompt")
+        }
+        OutlinedButton(onClick = {
+            clipboard.setText(AnnotatedString(prompt + "\\n\\nNegative Prompt: " + negative))
+        }, modifier = Modifier.fillMaxWidth()) { Text("Copy All") }
+        Text("Review product details against the original photo before using the prompt in an external video model.",
+            color = StudioMuted, fontSize = 12.sp)
+        Button(onClick = { nav.navigate("configure") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Adjust Configuration")
+        }
     }
 }
