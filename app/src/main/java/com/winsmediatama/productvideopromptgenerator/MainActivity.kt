@@ -366,6 +366,42 @@ fun PromptLibraryScreen(nav: NavHostController) {
             }
         }
     }
+    val fullExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            SavedPromptStore.exportZip(context, output)
+                        } ?: error("Unable to open destination file.")
+                    }
+                }
+                backupStatus = result.fold(
+                    onSuccess = { "Full backup exported with product photos." },
+                    onFailure = { "ZIP export failed: ${it.localizedMessage ?: "Unknown error"}" }
+                )
+            }
+        }
+    }
+    val fullImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            SavedPromptStore.importZip(context, input)
+                        } ?: error("Unable to read selected ZIP file.")
+                    }
+                }
+                result.onSuccess { count ->
+                    saved = SavedPromptStore.getAll(context)
+                    backupStatus = "$count project(s) restored from full backup."
+                }.onFailure {
+                    backupStatus = "ZIP import failed: ${it.localizedMessage ?: "Invalid backup file"}"
+                }
+            }
+        }
+    }
     Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
         Text("Prompt Library", color = StudioText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
@@ -378,6 +414,16 @@ fun PromptLibraryScreen(nav: NavHostController) {
                 Text("Import JSON")
             }
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { fullExportLauncher.launch("ProductVideoPromptGenerator-Full-Backup.zip") }, modifier = Modifier.weight(1f)) {
+                Text("Full Backup ZIP")
+            }
+            OutlinedButton(onClick = { fullImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }, modifier = Modifier.weight(1f)) {
+                Text("Restore ZIP")
+            }
+        }
+        Text("Full ZIP backup includes project settings and saved product photos. JSON backup contains project text and settings only.",
+            color = StudioMuted, fontSize = 11.sp)
         if (backupStatus.isNotBlank()) {
             Text(backupStatus, color = StudioCyan, fontSize = 12.sp)
         }
