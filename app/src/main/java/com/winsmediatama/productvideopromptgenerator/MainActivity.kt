@@ -333,6 +333,22 @@ fun PromptLibraryScreen(nav: NavHostController) {
     var renameTarget by remember { mutableStateOf<SavedPrompt?>(null) }
     var renameName by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<SavedPrompt?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var sortOrder by remember { mutableStateOf("Newest") }
+    val visibleSaved = remember(saved, searchQuery, sortOrder) {
+        val filtered = saved.filter { item ->
+            val query = searchQuery.trim()
+            query.isBlank() || item.name.contains(query, ignoreCase = true) ||
+                item.category.contains(query, ignoreCase = true) || item.title.contains(query, ignoreCase = true) ||
+                item.prompt.contains(query, ignoreCase = true) || item.productDetails.contains(query, ignoreCase = true)
+        }
+        when (sortOrder) {
+            "Oldest" -> filtered.sortedBy { it.savedAt }
+            "A–Z" -> filtered.sortedBy { it.name.lowercase() }
+            "Z–A" -> filtered.sortedByDescending { it.name.lowercase() }
+            else -> filtered.sortedByDescending { it.savedAt }
+        }
+    }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) {
             scope.launch {
@@ -409,6 +425,25 @@ fun PromptLibraryScreen(nav: NavHostController) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
         Text("Prompt Library", color = StudioText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text("${saved.size} saved prompt project(s) on this device", color = StudioMuted, fontSize = 12.sp)
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Search projects") },
+            placeholder = { Text("Name, category, title, or prompt") }
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("${visibleSaved.size} result(s)", color = StudioMuted, fontSize = 12.sp)
+            TextButton(onClick = {
+                sortOrder = when (sortOrder) {
+                    "Newest" -> "Oldest"
+                    "Oldest" -> "A–Z"
+                    "A–Z" -> "Z–A"
+                    else -> "Newest"
+                }
+            }) { Text("Sort: $sortOrder") }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { exportLauncher.launch("ProductVideoPromptGenerator-Backup.json") }, modifier = Modifier.weight(1f)) {
                 Text("Export JSON")
@@ -438,7 +473,10 @@ fun PromptLibraryScreen(nav: NavHostController) {
                 }
             }
         }
-        saved.forEach { item ->
+        if (saved.isNotEmpty() && visibleSaved.isEmpty()) {
+            Text("No projects match your search.", color = StudioMuted, fontSize = 13.sp)
+        }
+        visibleSaved.forEach { item ->
             Surface(color = StudioSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(item.name.ifBlank { "Untitled Project" }, color = StudioText, fontWeight = FontWeight.Bold)
