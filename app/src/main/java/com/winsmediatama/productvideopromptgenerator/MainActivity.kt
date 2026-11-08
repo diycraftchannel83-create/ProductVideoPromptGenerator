@@ -128,7 +128,7 @@ private val categories = listOf(
 @Composable
 fun HomeScreen(nav: NavHostController) {
     Column(
-        Modifier.fillMaxSize().background(StudioBackground).padding(20.dp),
+        Modifier.fillMaxSize().background(StudioBackground).navigationBarsPadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
