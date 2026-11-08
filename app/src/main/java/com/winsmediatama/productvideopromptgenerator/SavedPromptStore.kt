@@ -1,6 +1,11 @@
 package com.winsmediatama.productvideopromptgenerator
 
 import android.content.Context
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -161,6 +166,86 @@ object SavedPromptStore {
         put("language", saved.language)
         put("multiScene", saved.multiScene)
         put("imagePath", saved.imagePath)
+    }
+
+
+    fun exportZip(context: Context, output: OutputStream) {
+        val zip = ZipOutputStream(output.buffered())
+        val projects = JSONArray()
+        getAll(context).forEach { saved ->
+            val json = toJson(saved)
+            val image = savedImageFile(context, saved.imagePath)
+            if (image != null) {
+                val entryName = "images/project_${saved.id}_${image.name}"
+                json.put("imagePath", entryName)
+                zip.putNextEntry(ZipEntry(entryName))
+                image.inputStream().buffered().use { input -> input.copyTo(zip) }
+                zip.closeEntry()
+            } else {
+                json.put("imagePath", "")
+            }
+            projects.put(json)
+        }
+        val manifest = JSONObject().apply {
+            put("format", "wins-product-video-prompt-projects")
+            put("version", 1)
+            put("backupType", "full")
+            put("exportedAt", System.currentTimeMillis())
+            put("projects", projects)
+        }.toString(2).toByteArray(Charsets.UTF_8)
+        zip.putNextEntry(ZipEntry("backup.json"))
+        zip.write(manifest)
+        zip.closeEntry()
+        zip.finish()
+        zip.flush()
+    }
+
+    fun importZip(context: Context, input: InputStream): Int {
+        val zip = ZipInputStream(input.buffered())
+        val images = mutableMapOf<String, String>()
+        var manifest: String? = null
+        var totalImageBytes = 0L
+        val imageDirectory = java.io.File(context.filesDir, "product_images").apply { mkdirs() }
+        while (true) {
+            val entry = zip.nextEntry ?: break
+            val name = entry.name
+            require(!name.startsWith("/") && !name.contains("..") && !name.contains("\\\\")) {
+                "Backup contains an unsafe file path."
+            }
+            if (!entry.isDirectory && name == "backup.json") {
+                val bytes = zip.readBytes()
+                require(bytes.size <= 10 * 1024 * 1024) { "Backup manifest is too large." }
+                manifest = bytes.toString(Charsets.UTF_8)
+            } else if (!entry.isDirectory && name.startsWith("images/") && name.count { it == '/' } == 1) {
+                val fileBytes = zip.readBytes()
+                totalImageBytes += fileBytes.size
+                require(totalImageBytes <= 100L * 1024 * 1024) { "Backup images exceed the 100 MB limit." }
+                val extension = name.substringAfterLast('.', "img").lowercase().filter { it.isLetterOrDigit() }.take(8).ifBlank { "img" }
+                val destination = java.io.File(imageDirectory, "imported_${System.currentTimeMillis()}_${images.size}.$extension")
+                destination.writeBytes(fileBytes)
+                images[name] = destination.relativeTo(context.filesDir).invariantSeparatorsPath
+            }
+            zip.closeEntry()
+        }
+        val raw = manifest ?: throw IllegalArgumentException("ZIP backup does not contain backup.json.")
+        val root = JSONObject(raw)
+        require(root.optString("format") == "wins-product-video-prompt-projects" && root.optInt("version", -1) == 1) {
+            "Unsupported ProductVideoPromptGenerator backup."
+        }
+        val projects = root.optJSONArray("projects") ?: throw IllegalArgumentException("Backup contains no projects.")
+        for (index in 0 until projects.length()) {
+            val project = projects.optJSONObject(index) ?: continue
+            val archivedPath = project.optString("imagePath")
+            project.put("imagePath", images[archivedPath] ?: "")
+        }
+        return importJson(context, root.toString())
+    }
+
+    private fun savedImageFile(context: Context, relativePath: String): java.io.File? {
+        if (relativePath.isBlank()) return null
+        val root = context.filesDir.canonicalFile
+        val file = java.io.File(root, relativePath).canonicalFile
+        return file.takeIf { it.path.startsWith(root.path + java.io.File.separator) && it.isFile }
     }
 
     fun delete(context: Context, id: Long) {
