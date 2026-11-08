@@ -80,8 +80,6 @@ object SavedPromptStore {
                 put("language", saved.language)
                 put("multiScene", saved.multiScene)
                 put("imagePath", saved.imagePath)
-        put("imagePath", saved.imagePath)
-                put("imagePath", saved.imagePath)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).apply()
@@ -162,6 +160,7 @@ object SavedPromptStore {
         put("aspectRatio", saved.aspectRatio)
         put("language", saved.language)
         put("multiScene", saved.multiScene)
+        put("imagePath", saved.imagePath)
     }
 
     fun delete(context: Context, id: Long) {
@@ -184,6 +183,7 @@ object SavedPromptStore {
                 put("aspectRatio", saved.aspectRatio)
                 put("language", saved.language)
                 put("multiScene", saved.multiScene)
+                put("imagePath", saved.imagePath)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).apply()
