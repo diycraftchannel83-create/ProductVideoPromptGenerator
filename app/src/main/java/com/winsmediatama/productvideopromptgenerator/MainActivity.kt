@@ -52,6 +52,14 @@ private object PromptSession {
     var category: String = "Product Commercial"
     var results: List<PromptResult> = emptyList()
     var productDetails: String = ""
+    var style: String = "Cinematic"
+    var camera: String = "Slow dolly-in"
+    var lighting: String = "Soft studio lighting"
+    var background: String = "Minimal premium studio"
+    var duration: String = "8 seconds"
+    var aspectRatio: String = "9:16"
+    var language: String = "English"
+    var multiScene: Boolean = false
 }
 
 class MainActivity : ComponentActivity() {
@@ -309,6 +317,15 @@ fun PromptLibraryScreen(nav: NavHostController) {
                         Button(onClick = {
                             PromptSession.projectName = item.name
                             PromptSession.category = item.category
+                            PromptSession.productDetails = item.productDetails
+                            PromptSession.style = item.style
+                            PromptSession.camera = item.camera
+                            PromptSession.lighting = item.lighting
+                            PromptSession.background = item.background
+                            PromptSession.duration = item.duration
+                            PromptSession.aspectRatio = item.aspectRatio
+                            PromptSession.language = item.language
+                            PromptSession.multiScene = item.multiScene
                             PromptSession.results = listOf(PromptResult(item.title, item.prompt, item.negativePrompt))
                             nav.navigate("results") { popUpTo("home") { inclusive = false } }
                         }) { Text("Open Prompt") }
@@ -339,14 +356,14 @@ fun SimpleScreen(title: String, subtitle: String, nav: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigurationScreen(nav: NavHostController) {
-    var style by remember { mutableStateOf("Cinematic") }
-    var camera by remember { mutableStateOf("Slow dolly-in") }
-    var lighting by remember { mutableStateOf("Soft studio lighting") }
-    var background by remember { mutableStateOf("Minimal premium studio") }
-    var duration by remember { mutableStateOf("8 seconds") }
-    var ratio by remember { mutableStateOf("9:16") }
-    var language by remember { mutableStateOf("English") }
-    var multiScene by remember { mutableStateOf(false) }
+    var style by remember { mutableStateOf(PromptSession.style) }
+    var camera by remember { mutableStateOf(PromptSession.camera) }
+    var lighting by remember { mutableStateOf(PromptSession.lighting) }
+    var background by remember { mutableStateOf(PromptSession.background) }
+    var duration by remember { mutableStateOf(PromptSession.duration) }
+    var ratio by remember { mutableStateOf(PromptSession.aspectRatio) }
+    var language by remember { mutableStateOf(PromptSession.language) }
+    var multiScene by remember { mutableStateOf(PromptSession.multiScene) }
 
     Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -370,6 +387,14 @@ fun ConfigurationScreen(nav: NavHostController) {
             }
         }
         Button(onClick = {
+            PromptSession.style = style
+            PromptSession.camera = camera
+            PromptSession.lighting = lighting
+            PromptSession.background = background
+            PromptSession.duration = duration
+            PromptSession.aspectRatio = ratio
+            PromptSession.language = language
+            PromptSession.multiScene = multiScene
             val request = PromptRequest(PromptSession.projectName, PromptSession.category, style, camera, lighting,
                 background, duration, ratio, language, multiScene, PromptSession.productDetails)
             PromptSession.results = OfflinePromptEngine.generate(request)
@@ -445,7 +470,16 @@ fun PromptResultsScreen(nav: NavHostController) {
                 title = results.getOrNull(selected)?.title ?: "Saved Prompt",
                 prompt = prompt,
                 negativePrompt = negative,
-                savedAt = System.currentTimeMillis()
+                savedAt = System.currentTimeMillis(),
+                productDetails = PromptSession.productDetails,
+                style = PromptSession.style,
+                camera = PromptSession.camera,
+                lighting = PromptSession.lighting,
+                background = PromptSession.background,
+                duration = PromptSession.duration,
+                aspectRatio = PromptSession.aspectRatio,
+                language = PromptSession.language,
+                multiScene = PromptSession.multiScene
             ))
         }, modifier = Modifier.fillMaxWidth()) { Text("Save Project to Library") }
         Text("Review product details against the original photo before using the prompt in an external video model.",
