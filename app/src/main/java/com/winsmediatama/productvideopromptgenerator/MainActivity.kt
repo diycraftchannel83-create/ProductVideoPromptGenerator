@@ -80,7 +80,7 @@ fun ProductPromptApp() {
                 composable("create") { CreateProjectScreen(nav) }
                 composable("configure") { ConfigurationScreen(nav) }
                 composable("results") { PromptResultsScreen(nav) }
-                composable("library") { SimpleScreen("Prompt Library", "Saved prompts will appear here.", nav) }
+                composable("library") { PromptLibraryScreen(nav) }
                 composable("settings") { SimpleScreen("Settings", "Language, theme and AI preferences.", nav) }
             }
         }
@@ -284,6 +284,45 @@ fun CreateProjectScreen(nav: NavHostController) {
 }
 
 @Composable
+fun PromptLibraryScreen(nav: NavHostController) {
+    val context = LocalContext.current
+    var saved by remember { mutableStateOf(SavedPromptStore.getAll(context)) }
+    Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
+        Text("Prompt Library", color = StudioText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("${saved.size} saved prompt project(s) on this device", color = StudioMuted, fontSize = 12.sp)
+        if (saved.isEmpty()) {
+            Surface(color = StudioSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("Your library is empty", color = StudioText, fontWeight = FontWeight.Bold)
+                    Text("Generate a prompt, then tap Save Project to keep it here.", color = StudioMuted, fontSize = 13.sp)
+                }
+            }
+        }
+        saved.forEach { item ->
+            Surface(color = StudioSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(item.name.ifBlank { "Untitled Project" }, color = StudioText, fontWeight = FontWeight.Bold)
+                    Text("${item.category} • ${item.title}", color = StudioCyan, fontSize = 12.sp)
+                    Text(item.prompt, color = StudioMuted, fontSize = 12.sp, maxLines = 3)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = {
+                            PromptSession.projectName = item.name
+                            PromptSession.category = item.category
+                            PromptSession.results = listOf(PromptResult(item.title, item.prompt, item.negativePrompt))
+                            nav.navigate("results") { popUpTo("home") { inclusive = false } }
+                        }) { Text("Open Prompt") }
+                        OutlinedButton(onClick = {
+                            SavedPromptStore.delete(context, item.id)
+                            saved = SavedPromptStore.getAll(context)
+                        }) { Text("Delete") }
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
 fun SimpleScreen(title: String, subtitle: String, nav: NavHostController) {
     Column(
         Modifier.fillMaxSize().background(StudioBackground).padding(24.dp),
@@ -397,6 +436,17 @@ fun PromptResultsScreen(nav: NavHostController) {
         OutlinedButton(onClick = {
             clipboard.setText(AnnotatedString(prompt + "\\n\\nNegative Prompt: " + negative))
         }, modifier = Modifier.fillMaxWidth()) { Text("Copy All") }
+        OutlinedButton(onClick = {
+            SavedPromptStore.save(LocalContext.current, SavedPrompt(
+                id = System.currentTimeMillis(),
+                name = PromptSession.projectName,
+                category = PromptSession.category,
+                title = results.getOrNull(selected)?.title ?: "Saved Prompt",
+                prompt = prompt,
+                negativePrompt = negative,
+                savedAt = System.currentTimeMillis()
+            ))
+        }, modifier = Modifier.fillMaxWidth()) { Text("Save Project to Library") }
         Text("Review product details against the original photo before using the prompt in an external video model.",
             color = StudioMuted, fontSize = 12.sp)
         Button(onClick = { nav.navigate("configure") }, modifier = Modifier.fillMaxWidth()) {
