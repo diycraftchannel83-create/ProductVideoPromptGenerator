@@ -19,10 +19,15 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import com.winsmediatama.productvideopromptgenerator.engine.OfflinePromptEngine
 import com.winsmediatama.productvideopromptgenerator.engine.PromptRequest
 import com.winsmediatama.productvideopromptgenerator.engine.PromptResult
+import com.winsmediatama.productvideopromptgenerator.vision.ProductVisionAnalyzer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -149,6 +154,10 @@ fun CreateProjectScreen(nav: NavHostController) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var projectName by remember { mutableStateOf("") }
     var productDetails by remember { mutableStateOf("") }
+    var visionStatus by remember { mutableStateOf("") }
+    var isAnalyzing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var selectedCategory by remember { mutableStateOf(categories.first()) }
     var expanded by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -182,6 +191,39 @@ fun CreateProjectScreen(nav: NavHostController) {
             } else {
                 AsyncImage(model = imageUri, contentDescription = "Selected product photo", modifier = Modifier.fillMaxSize())
             }
+        }
+
+        OutlinedButton(
+            onClick = {
+                val selectedUri = imageUri ?: return@OutlinedButton
+                scope.launch {
+                    isAnalyzing = true
+                    visionStatus = "Analyzing photo on this device..."
+                    try {
+                        val result = withContext(Dispatchers.IO) {
+                            ProductVisionAnalyzer().analyze(context, selectedUri)
+                        }
+                        val notes = result.toPromptNotes()
+                        if (notes.isNotBlank()) {
+                            productDetails = listOf(productDetails, notes).filter { it.isNotBlank() }.joinToString(". ")
+                            visionStatus = "Analysis complete: ${result.labels.size} visual labels, ${result.visibleText.size} text lines detected."
+                        } else {
+                            visionStatus = "No clear labels or text detected. Add product details manually."
+                        }
+                    } catch (error: Exception) {
+                        visionStatus = "Analysis failed: ${error.localizedMessage ?: "Please try another photo."}"
+                    } finally {
+                        isAnalyzing = false
+                    }
+                }
+            },
+            enabled = imageUri != null && !isAnalyzing,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isAnalyzing) "Analyzing Photo..." else "✦ Analyze Product Photo with AI")
+        }
+        if (visionStatus.isNotBlank()) {
+            Text(visionStatus, color = StudioCyan, fontSize = 12.sp)
         }
 
         OutlinedTextField(
