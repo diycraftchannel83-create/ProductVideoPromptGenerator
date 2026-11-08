@@ -4,7 +4,8 @@ data class PromptRequest(
     val productName: String, val category: String, val style: String,
     val camera: String, val lighting: String, val background: String,
     val duration: String, val aspectRatio: String, val language: String,
-    val multiScene: Boolean
+    val multiScene: Boolean,
+    val productDetails: String = ""
 )
 data class PromptResult(val title: String, val prompt: String, val negativePrompt: String)
 
@@ -13,6 +14,7 @@ object OfflinePromptEngine {
 
     fun generate(r: PromptRequest): List<PromptResult> {
         val product = if (r.productName.isBlank()) "the product in the reference image" else r.productName
+        val visualDetails = r.productDetails.trim().takeIf { it.isNotEmpty() }?.let { " User-provided visible product details: $it. Treat these notes as reference observations and do not add unsupported claims." } ?: ""
         val direction = when (r.category) {
             "Product Commercial" -> "Create a persuasive professional product commercial showcasing the product's visual appeal."
             "Cinematic Product" -> "Create a cinematic hero presentation with deliberate composition and refined visual storytelling."
@@ -44,6 +46,7 @@ object OfflinePromptEngine {
             val prompt = if (r.language == "Indonesia") {
                 "Buat video iklan " + r.category + " dengan konsep " + concept.first + ". Gunakan foto yang diunggah sebagai referensi utama untuk " + product +
                     ". Pertahankan desain, bentuk, proporsi, warna, logo, label, dan kemasan yang terlihat. Jangan mengarang spesifikasi yang tidak terlihat. " +
+                    (visualDetails.takeIf { it.isNotBlank() }?.let { "Detail visual yang diberikan pengguna: " + r.productDetails.trim() + ". " } ?: "") +
                     "Gaya: " + r.style + ". Latar: " + r.background + ". Kamera: " + r.camera + ". Pencahayaan: " + r.lighting +
                     ". Gunakan material realistis, bayangan alami, depth of field terkontrol, dan gerakan halus. " + scene +
                     " Output: " + r.duration + ", rasio " + r.aspectRatio + ". Jaga konsistensi produk di setiap frame."
