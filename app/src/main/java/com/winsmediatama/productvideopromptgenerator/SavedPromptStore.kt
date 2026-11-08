@@ -252,6 +252,27 @@ object SavedPromptStore {
         return file.takeIf { it.path.startsWith(root.path + java.io.File.separator) && it.isFile }
     }
 
+
+    fun rename(context: Context, id: Long, newName: String): Boolean {
+        val cleanName = newName.trim()
+        if (cleanName.isBlank()) return false
+        val item = getAll(context).firstOrNull { it.id == id } ?: return false
+        save(context, item.copy(name = cleanName))
+        return true
+    }
+
+    fun duplicate(context: Context, id: Long): SavedPrompt? {
+        val original = getAll(context).firstOrNull { it.id == id } ?: return null
+        val now = System.currentTimeMillis()
+        val duplicate = original.copy(
+            id = now,
+            name = (original.name.ifBlank { "Untitled Project" }) + " (Copy)",
+            savedAt = now
+        )
+        save(context, duplicate)
+        return duplicate
+    }
+
     fun delete(context: Context, id: Long) {
         val array = JSONArray()
         getAll(context).filterNot { it.id == id }.forEach { saved ->
