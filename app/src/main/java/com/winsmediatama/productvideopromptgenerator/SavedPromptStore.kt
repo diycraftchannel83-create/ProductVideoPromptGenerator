@@ -112,6 +112,10 @@ object SavedPromptStore {
         var imported = 0
         for (index in 0 until projects.length()) {
             val obj = projects.optJSONObject(index) ?: continue
+            val imagePath = obj.optString("imagePath")
+            if (imagePath.isNotBlank() && savedImageFile(context, imagePath) == null) {
+                obj.put("imagePath", "")
+            }
             val item = fromJson(obj) ?: continue
             val uniqueId = if (merged.any { it.id == item.id }) System.currentTimeMillis() + index else item.id
             merged.removeAll { it.id == uniqueId }
