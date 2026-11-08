@@ -213,7 +213,7 @@ object SavedPromptStore {
         while (true) {
             val entry = zip.nextEntry ?: break
             val name = entry.name
-            require(!name.startsWith("/") && !name.contains("..") && !name.contains("\\\\")) {
+            require(!name.startsWith("/") && !name.contains("..") && !name.contains("\\")) {
                 "Backup contains an unsafe file path."
             }
             if (!entry.isDirectory && name == "backup.json") {
