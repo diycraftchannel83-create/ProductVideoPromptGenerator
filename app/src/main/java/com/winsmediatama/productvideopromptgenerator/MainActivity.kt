@@ -402,6 +402,7 @@ private fun PromptChoice(label: String, selected: String, options: List<String>,
 @Composable
 fun PromptResultsScreen(nav: NavHostController) {
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     val results = PromptSession.results
     var selected by remember { mutableIntStateOf(0) }
     var prompt by remember { mutableStateOf(results.firstOrNull()?.prompt.orEmpty()) }
@@ -437,7 +438,7 @@ fun PromptResultsScreen(nav: NavHostController) {
             clipboard.setText(AnnotatedString(prompt + "\\n\\nNegative Prompt: " + negative))
         }, modifier = Modifier.fillMaxWidth()) { Text("Copy All") }
         OutlinedButton(onClick = {
-            SavedPromptStore.save(LocalContext.current, SavedPrompt(
+            SavedPromptStore.save(context, SavedPrompt(
                 id = System.currentTimeMillis(),
                 name = PromptSession.projectName,
                 category = PromptSession.category,
