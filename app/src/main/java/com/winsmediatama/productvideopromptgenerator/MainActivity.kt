@@ -294,11 +294,60 @@ fun CreateProjectScreen(nav: NavHostController) {
 @Composable
 fun PromptLibraryScreen(nav: NavHostController) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var saved by remember { mutableStateOf(SavedPromptStore.getAll(context)) }
+    var backupStatus by remember { mutableStateOf("") }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                            it.write(SavedPromptStore.exportJson(context))
+                        } ?: error("Unable to open destination file.")
+                    }
+                }
+                backupStatus = result.fold(
+                    onSuccess = { "Backup exported successfully." },
+                    onFailure = { "Export failed: ${it.localizedMessage ?: "Unknown error"}" }
+                )
+            }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        val raw = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                            ?: error("Unable to read selected file.")
+                        SavedPromptStore.importJson(context, raw)
+                    }
+                }
+                result.onSuccess { count ->
+                    saved = SavedPromptStore.getAll(context)
+                    backupStatus = "$count project(s) imported."
+                }.onFailure {
+                    backupStatus = "Import failed: ${it.localizedMessage ?: "Invalid backup file"}"
+                }
+            }
+        }
+    }
     Column(Modifier.fillMaxSize().background(StudioBackground).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
         Text("Prompt Library", color = StudioText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text("${saved.size} saved prompt project(s) on this device", color = StudioMuted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { exportLauncher.launch("ProductVideoPromptGenerator-Backup.json") }, modifier = Modifier.weight(1f)) {
+                Text("Export JSON")
+            }
+            OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }, modifier = Modifier.weight(1f)) {
+                Text("Import JSON")
+            }
+        }
+        if (backupStatus.isNotBlank()) {
+            Text(backupStatus, color = StudioCyan, fontSize = 12.sp)
+        }
         if (saved.isEmpty()) {
             Surface(color = StudioSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp)) {
