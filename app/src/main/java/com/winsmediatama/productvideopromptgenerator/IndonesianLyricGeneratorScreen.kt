@@ -22,6 +22,7 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
     val clipboard = LocalClipboardManager.current
     var title by remember { mutableStateOf("Di Ujung Doa") }
     var theme by remember { mutableStateOf("perjuangan, kehilangan, harapan dan doa") }
+    var language by remember { mutableStateOf("Bahasa Indonesia") }
     var genre by remember { mutableStateOf("Pop Ballad") }
     var mood by remember { mutableStateOf("Menyayat hati") }
     var vocal by remember { mutableStateOf("Pria") }
@@ -35,12 +36,13 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
-        Text("Indonesian Lyric Studio", color = StudioText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Text("Bilingual Lyric Studio", color = StudioText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Text("Generator lirik offline dengan arahan vokal, instrumen, cue performa, dan dinamika emosi di setiap bagian.", color = StudioMuted, fontSize = 13.sp)
         OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
             label = { Text("Judul lagu") }, singleLine = true)
         OutlinedTextField(value = theme, onValueChange = { theme = it }, modifier = Modifier.fillMaxWidth(),
             label = { Text("Tema / cerita lagu") }, minLines = 2)
+        LyricDropdown("Bahasa lirik", language, listOf("Bahasa Indonesia", "English")) { language = it }
         LyricDropdown("Genre musik", genre, listOf("Pop Ballad", "Pop Rock", "Indie Folk", "Dangdut", "Akustik", "Religi", "Orkestra Sinematik", "R&B", "Rock Alternatif")) { genre = it }
         LyricDropdown("Nuansa emosi", mood, listOf("Menyayat hati", "Romantis", "Penuh harapan", "Spiritual dan khusyuk", "Semangat dan heroik", "Nostalgia", "Penuh penyesalan", "Bahagia")) { mood = it }
         LyricDropdown("Karakter vokal", vocal, listOf("Pria", "Wanita", "Duet", "Paduan suara")) { vocal = it }
@@ -52,11 +54,11 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
 
         Button(onClick = {
             generationIndex += 1
-            lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure, generationIndex)
+            lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure, language, generationIndex)
         }, modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
             shape = RoundedCornerShape(14.dp)) {
-            Text("♫  Generate Indonesian Lyrics", fontWeight = FontWeight.Bold)
+            Text(if (language == "English") "♫  Generate English Lyrics" else "♫  Generate Indonesian Lyrics", fontWeight = FontWeight.Bold)
         }
 
         if (lyric.isNotBlank()) {
@@ -96,6 +98,7 @@ private fun buildIndonesianLyric(
     mood: String,
     vocal: String,
     structure: String,
+    language: String,
     variation: Int
 ): String {
     val songTitle = title.trim().ifBlank { "Tanpa Judul" }
@@ -134,15 +137,46 @@ private fun buildIndonesianLyric(
         listOf("Bila malam datang kembali", "Takkan kubiarkan hati sendiri", "Doa menjadi teman abadi", "Menuntun langkah sampai nanti"),
         listOf("Kulepas resah bersama angin", "Kuterima takdir dengan yakin", "Di ujung doa kutemukan arti", "Untuk mencintai dan berdiri")
     )
+    val englishVerseVariants = listOf(
+        listOf("I hide my stories behind a smile", "Still walking through the endless night", "A silent longing stays inside", "And waits for dawn to bring the light"),
+        listOf("I asked the stars where dreams could go", "Why every road feels far too long", "A little flame still burns below", "And gives my weary heart its song"),
+        listOf("I trace the footprints left behind", "Your name returns with every breeze", "Though fragile days can shake my mind", "I keep the dreams I used to see")
+    )
+    val englishVerseTwoVariants = listOf(
+        listOf("I hold the memories close to me", "No longer running from the truth", "The scars have taught my heart to breathe", "And find the strength to start anew"),
+        listOf("The days move on and change their tune", "What once was lost still shaped my way", "I keep the stories like the moon", "That guides me through another day"),
+        listOf("If tomorrow tests my soul", "I'll face the storm and still believe", "A heart can mend and become whole", "When hope is what we choose to keep")
+    )
+    val englishChorusVariants = listOf(
+        listOf("Carry my prayer across the night", "Don't let the fading stars lose light", "Though tears may fall like summer rain", "My heart will rise and hope again"),
+        listOf("I still believe the storm will pass", "A light is born behind the glass", "Though life may never feel the same", "Love keeps alive a quiet flame"),
+        listOf("Can you hear the voice inside", "Calling with a faith that will not hide", "Let time reveal what we can't see", "A road will open for you and me")
+    )
+    val englishBridgeVariants = listOf(
+        listOf("When my tired feet can barely stand", "Remind me why I began this ride", "In the silence where I lose my way", "Your love is here, my strength, my guide"),
+        listOf("If I must let it all depart", "Let prayer become the breath I take", "When every door is closing down", "Faith is the ground I will not forsake"),
+        listOf("I don't need the world to understand", "As long as there's a light within", "From every piece I'll rise again", "A braver heart is born within")
+    )
+    val englishOutroVariants = listOf(
+        listOf("I leave my story in Your hands", "With every prayer, my spirit stands", "I'll greet tomorrow without fear", "For hope is still alive in here"),
+        listOf("When night returns to call my name", "I won't be lost inside the rain", "A prayer will be my friend for life", "And lead me through the darkest night"),
+        listOf("I let the restless wind pass by", "And trust the path beneath the sky", "At the end of every prayer", "I find the strength to love and care")
+    )
+    val useEnglish = language == "English"
+    val activeVerse = if (useEnglish) englishVerseVariants else verseVariants
+    val activeVerseTwo = if (useEnglish) englishVerseTwoVariants else verseTwoVariants
+    val activeChorus = if (useEnglish) englishChorusVariants else chorusVariants
+    val activeBridge = if (useEnglish) englishBridgeVariants else bridgeVariants
+    val activeOutro = if (useEnglish) englishOutroVariants else outroVariants
     val index = Math.floorMod(variation - 1, verseVariants.size)
     val sections = listOf(
-        Triple("[VERSE 1]", "[Emosi: intim, rapuh, mulai bercerita] [Vokal: lembut dan dekat] [Musik: piano/gitar minimal]", verseVariants[index]),
+        Triple("[VERSE 1]", "[Emosi: intim, rapuh, mulai bercerita] [Vokal: lembut dan dekat] [Musik: piano/gitar minimal]", activeVerse[index]),
         Triple("[PRE-CHORUS]", "[Emosi: ketegangan dan harapan mulai naik] [Vokal: intensitas bertahap] [Musik: strings dan perkusi perlahan masuk]", listOf("Kucoba berdiri sekali lagi", "Meski bayang ragu mengikuti", "Kutarik nafas, kuteguhkan hati", "Sebentar lagi terang menanti")),
-        Triple("[CHORUS / REFF]", "[Emosi: ledakan rasa dan pesan utama lagu] [Vokal: kuat, terbuka, nada panjang pada baris akhir] [Musik: full band dan strings lebar]", chorusVariants[index]),
-        Triple("[VERSE 2]", "[Emosi: lebih dewasa dan menerima] [Vokal: lembut tetapi tegas] [Musik: groove ringan]", verseTwoVariants[index]),
-        Triple("[BRIDGE]", "[Emosi: titik terendah berubah menjadi kebangkitan] [Vokal: mulai lirih lalu menguat] [Musik: drop sesaat lalu crescendo]", bridgeVariants[index]),
-        Triple("[FINAL CHORUS]", "[Emosi: klimaks, lega dan penuh keyakinan] [Vokal: paling kuat, harmoni bertumpuk] [Musik: full orchestra/band]", chorusVariants[(index + 1) % chorusVariants.size]),
-        Triple("[OUTRO]", "[Emosi: damai dan ikhlas] [Vokal: turun lembut] [Musik: piano atau gitar fade out]", outroVariants[index])
+        Triple("[CHORUS / REFF]", "[Emosi: ledakan rasa dan pesan utama lagu] [Vokal: kuat, terbuka, nada panjang pada baris akhir] [Musik: full band dan strings lebar]", activeChorus[index]),
+        Triple("[VERSE 2]", "[Emosi: lebih dewasa dan menerima] [Vokal: lembut tetapi tegas] [Musik: groove ringan]", activeVerseTwo[index]),
+        Triple("[BRIDGE]", "[Emosi: titik terendah berubah menjadi kebangkitan] [Vokal: mulai lirih lalu menguat] [Musik: drop sesaat lalu crescendo]", activeBridge[index]),
+        Triple("[FINAL CHORUS]", "[Emosi: klimaks, lega dan penuh keyakinan] [Vokal: paling kuat, harmoni bertumpuk] [Musik: full orchestra/band]", activeChorus[(index + 1) % activeChorus.size]),
+        Triple("[OUTRO]", "[Emosi: damai dan ikhlas] [Vokal: turun lembut] [Musik: piano atau gitar fade out]", activeOutro[index])
     )
     val selectedSections = when {
         structure.startsWith("Intro, Verse 1") -> sections
@@ -152,7 +186,7 @@ private fun buildIndonesianLyric(
 
     return buildString {
         appendLine("TITLE: $songTitle")
-        appendLine("LANGUAGE: Bahasa Indonesia")
+        appendLine("LANGUAGE: $language")
         appendLine("GENRE: $genre | MOOD: $mood | VOCAL: $vocal")
         appendLine("PERFORMANCE DIRECTION: $vocalCue")
         appendLine("STORY THEME: $story")
