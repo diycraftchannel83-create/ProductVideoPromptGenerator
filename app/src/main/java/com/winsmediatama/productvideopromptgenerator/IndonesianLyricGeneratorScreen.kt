@@ -28,6 +28,7 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
     var vocal by remember { mutableStateOf("Pria") }
     var structure by remember { mutableStateOf("Intro, Verse, Pre-Chorus, Chorus, Verse 2, Bridge, Final Chorus, Outro") }
     var lyric by remember { mutableStateOf("") }
+    var musicPrompt by remember { mutableStateOf("") }
     var generationIndex by remember { mutableIntStateOf(0) }
 
     Column(
@@ -55,6 +56,7 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
         Button(onClick = {
             generationIndex += 1
             lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure, language, generationIndex)
+            musicPrompt = buildMusicPrompt(title, theme, genre, mood, vocal, language, structure)
         }, modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
             shape = RoundedCornerShape(14.dp)) {
@@ -64,7 +66,7 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
         if (lyric.isNotBlank()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("HASIL LIRIK + CUE", color = StudioCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                TextButton(onClick = { clipboard.setText(AnnotatedString(lyric)) }) { Text("Copy All") }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(lyric + "\n\n[MUSIC PROMPT]\n" + musicPrompt)) }) { Text("Copy Lyrics + Prompt") }
             }
             OutlinedTextField(value = lyric, onValueChange = { lyric = it }, modifier = Modifier.fillMaxWidth(),
                 minLines = 18, label = { Text("Edit hasil lirik") })
@@ -72,6 +74,18 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
                 Text("Copy Lyrics for Suno / Music AI")
             }
             Text("Cue dalam tanda kurung siku memberi arahan aransemen dan performa. Cue emosi dan vokal disertakan pada setiap bagian lagu.", color = StudioMuted, fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
+            Text("MUSIC GENERATION PROMPT", color = StudioCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text("Prompt musik dibuat otomatis dari genre, emosi, karakter vokal, dan bahasa yang dipilih.", color = StudioMuted, fontSize = 11.sp)
+            OutlinedTextField(value = musicPrompt, onValueChange = { musicPrompt = it }, modifier = Modifier.fillMaxWidth(),
+                minLines = 7, label = { Text("Music prompt for Suno / Music AI") })
+            OutlinedButton(onClick = { clipboard.setText(AnnotatedString(musicPrompt)) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Copy Music Prompt")
+            }
+            Button(onClick = { clipboard.setText(AnnotatedString(lyric + "\n\n[MUSIC PROMPT]\n" + musicPrompt)) },
+                modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground)) {
+                Text("Copy Lyrics + Music Prompt", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -89,6 +103,60 @@ private fun LyricDropdown(label: String, selected: String, options: List<String>
             }
         }
     }
+}
+
+
+private fun buildMusicPrompt(
+    title: String,
+    theme: String,
+    genre: String,
+    mood: String,
+    vocal: String,
+    language: String,
+    structure: String
+): String {
+    val genreDirection = when (genre) {
+        "Pop Ballad" -> "emotional contemporary pop ballad, expressive piano foundation, warm strings, subtle acoustic guitar, wide cinematic drums and a memorable soaring chorus"
+        "Pop Rock" -> "anthemic pop rock, driving live drums, melodic electric guitars, warm bass, dynamic verses and a powerful guitar-supported chorus"
+        "Indie Folk" -> "intimate indie folk, organic acoustic guitars, gentle percussion, warm bass, subtle atmospheric textures and natural harmonies"
+        "Dangdut" -> "modern Indonesian dangdut arrangement, expressive kendang grooves, melodic suling accents, rhythmic bass, bright keyboards and an energetic yet emotional chorus"
+        "Akustik" -> "organic acoustic arrangement, fingerpicked acoustic guitar, intimate piano, soft percussion and natural vocal dynamics"
+        "Religi" -> "devotional spiritual arrangement, heartfelt piano, gentle strings, subtle frame drums, reverent atmosphere and uplifting choir harmonies"
+        "Orkestra Sinematik" -> "grand cinematic orchestral arrangement, expressive piano, sweeping strings, French horns, deep percussion, gradual crescendos and an epic emotional climax"
+        "R&B" -> "smooth contemporary R&B, soulful chords, warm electric piano, deep rounded bass, restrained modern drums, tasteful vocal runs and layered harmonies"
+        "Rock Alternatif" -> "atmospheric alternative rock, textured electric guitars, powerful live drums, deep bass, dynamic builds and an emotionally intense vocal performance"
+        else -> "polished contemporary arrangement with expressive instrumentation and dynamic production"
+    }
+    val moodDirection = when (mood) {
+        "Menyayat hati" -> "deeply heartbreaking, vulnerable, melancholic and emotionally cathartic"
+        "Romantis" -> "tender, intimate, warm and deeply romantic"
+        "Penuh harapan" -> "hopeful, uplifting, inspiring and gradually triumphant"
+        "Spiritual dan khusyuk" -> "reverent, peaceful, contemplative and spiritually moving"
+        "Semangat dan heroik" -> "bold, energetic, heroic and motivational"
+        "Nostalgia" -> "nostalgic, wistful, warm and reflective"
+        "Penuh penyesalan" -> "regretful, haunting, sincere and full of longing"
+        "Bahagia" -> "joyful, bright, celebratory and uplifting"
+        else -> "emotional and expressive"
+    }
+    val vocalDirection = when (vocal) {
+        "Wanita" -> "female lead vocal, expressive and clear, with controlled vibrato"
+        "Duet" -> "male and female duet, alternating conversational verses and powerful blended harmonies in the chorus"
+        "Paduan suara" -> "solo lead supported by a rich mixed choir, layered harmonies and a grand final chorus"
+        else -> "male lead vocal, warm expressive tone, clear diction and emotional phrasing"
+    }
+    val lyricLanguage = if (language == "English") "English lyrics only, natural fluent English pronunciation" else "Indonesian lyrics only, natural Bahasa Indonesia pronunciation"
+    return """
+Create an original song titled "$title".
+Lyrics theme and story: \${theme.ifBlank { "a heartfelt personal journey" }}.
+Style: $genreDirection.
+Emotional direction: $moodDirection.
+Vocals: $vocalDirection.
+Language: $lyricLanguage.
+Song structure: $structure.
+Arrangement: begin with a distinctive instrumental intro, keep verses intimate, build tension in the pre-chorus, deliver a memorable wide chorus, create a contrasting emotional bridge, then reach a powerful final chorus and a gentle resolved outro.
+Production: professional studio quality, balanced modern mix, warm detailed instrumentation, clear upfront vocals, natural dynamics, tasteful reverb, strong melodic hooks and polished mastering.
+Performance: expressive storytelling, accurate lyric phrasing, emotional progression between sections, no spoken explanations, no extra ad-libs that obscure the lyrics.
+""".trim()
 }
 
 private fun buildIndonesianLyric(
