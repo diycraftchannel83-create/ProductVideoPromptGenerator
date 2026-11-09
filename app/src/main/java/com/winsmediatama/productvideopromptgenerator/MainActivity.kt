@@ -41,12 +41,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
 
-private val StudioBackground = Color(0xFF0B1020)
+val StudioBackground = Color(0xFF0B1020)
 private val StudioSurface = Color(0xFF151D32)
-private val StudioCyan = Color(0xFF62E7F5)
+val StudioCyan = Color(0xFF62E7F5)
 private val StudioViolet = Color(0xFF9B8CFF)
-private val StudioText = Color(0xFFF4F7FF)
-private val StudioMuted = Color(0xFF9AA8C2)
+val StudioText = Color(0xFFF4F7FF)
+val StudioMuted = Color(0xFF9AA8C2)
 
 private object PromptSession {
     var projectName: String = ""
