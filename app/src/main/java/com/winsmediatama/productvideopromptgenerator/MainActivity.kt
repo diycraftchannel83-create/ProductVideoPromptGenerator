@@ -91,6 +91,7 @@ fun ProductPromptApp() {
                 composable("configure") { ConfigurationScreen(nav) }
                 composable("results") { PromptResultsScreen(nav) }
                 composable("library") { PromptLibraryScreen(nav) }
+                composable("lyrics") { IndonesianLyricGeneratorScreen(nav) }
                 composable("settings") { SimpleScreen("Settings", "Language, theme and AI preferences.", nav) }
             }
         }
@@ -149,6 +150,16 @@ fun HomeScreen(nav: NavHostController) {
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground)
         ) {
             Text("+  Create New Video Prompt", fontWeight = FontWeight.Bold)
+        }
+
+        OutlinedButton(
+            onClick = { nav.navigate("lyrics") },
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioCyan),
+            border = BorderStroke(1.dp, StudioCyan.copy(alpha = 0.7f))
+        ) {
+            Text("♫  Indonesian Lyric Generator", fontWeight = FontWeight.Bold)
         }
 
         Text("Explore Categories", color = StudioText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
