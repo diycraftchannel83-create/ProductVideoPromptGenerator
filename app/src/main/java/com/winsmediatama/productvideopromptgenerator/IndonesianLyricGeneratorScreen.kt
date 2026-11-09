@@ -11,7 +11,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,6 +25,11 @@ import androidx.navigation.NavHostController
 @Composable
 fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var apiKey by remember { mutableStateOf(OpenAiKeyStore.get(context).orEmpty()) }
+    var apiStatus by remember { mutableStateOf("") }
+    var isGenerating by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("Di Ujung Doa") }
     var theme by remember { mutableStateOf("perjuangan, kehilangan, harapan dan doa") }
     var language by remember { mutableStateOf("Bahasa Indonesia") }
@@ -38,7 +48,39 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
     ) {
         Text("‹ Back", color = StudioCyan, modifier = Modifier.clickable { nav.popBackStack() })
         Text("Bilingual Lyric Studio", color = StudioText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-        Text("Generator lirik offline dengan arahan vokal, instrumen, cue performa, dan dinamika emosi di setiap bagian.", color = StudioMuted, fontSize = 13.sp)
+        Text("Buat lirik dengan OpenAI GPT atau gunakan generator offline. Cue vokal, instrumen, dan dinamika emosi tetap disertakan.", color = StudioMuted, fontSize = 13.sp)
+        Surface(color = StudioSurface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("OPENAI API KEY", color = StudioCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    label = { Text("Masukkan API key milik Anda") },
+                    placeholder = { Text("sk-...") }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        val cleanKey = apiKey.trim()
+                        if (cleanKey.startsWith("sk-")) {
+                            OpenAiKeyStore.save(context, cleanKey)
+                            apiStatus = "API key tersimpan terenkripsi di perangkat ini."
+                        } else {
+                            apiStatus = "Periksa API key. Format key OpenAI biasanya diawali sk-."
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Simpan Key") }
+                    TextButton(onClick = {
+                        OpenAiKeyStore.clear(context)
+                        apiKey = ""
+                        apiStatus = "API key dihapus dari perangkat."
+                    }) { Text("Hapus") }
+                }
+                Text("Key disimpan terenkripsi di perangkat dan tidak dimasukkan ke GitHub. Penggunaan API mengikuti biaya akun OpenAI Anda.", color = StudioMuted, fontSize = 11.sp)
+                if (apiStatus.isNotBlank()) Text(apiStatus, color = StudioCyan, fontSize = 11.sp)
+            }
+        }
         OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(),
             label = { Text("Judul lagu") }, singleLine = true)
         OutlinedTextField(value = theme, onValueChange = { theme = it }, modifier = Modifier.fillMaxWidth(),
@@ -54,13 +96,43 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
         )) { structure = it }
 
         Button(onClick = {
+            if (apiKey.isBlank()) {
+                apiStatus = "Masukkan dan simpan OpenAI API key terlebih dahulu, atau gunakan generator offline."
+            } else if (!isGenerating) {
+                isGenerating = true
+                apiStatus = "Menghubungi OpenAI..."
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching {
+                            OpenAiLyricClient.generate(
+                                apiKey = apiKey.trim(), title = title, theme = theme, genre = genre,
+                                mood = mood, vocal = vocal, structure = structure, language = language
+                            )
+                        }
+                    }
+                    result.onSuccess { generated ->
+                        lyric = generated
+                        musicPrompt = buildMusicPrompt(title, theme, genre, mood, vocal, language, structure)
+                        apiStatus = "Lirik berhasil dibuat oleh GPT."
+                    }.onFailure { error ->
+                        apiStatus = "GPT gagal: ${error.message ?: "Periksa koneksi dan API key."}"
+                    }
+                    isGenerating = false
+                }
+            }
+        }, enabled = !isGenerating, modifier = Modifier.fillMaxWidth().height(54.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
+            shape = RoundedCornerShape(14.dp)) {
+            if (isGenerating) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            else Text(if (language == "English") "✦  Generate with GPT" else "✦  Buat Lirik dengan GPT", fontWeight = FontWeight.Bold)
+        }
+        OutlinedButton(onClick = {
             generationIndex += 1
             lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure, language, generationIndex)
             musicPrompt = buildMusicPrompt(title, theme, genre, mood, vocal, language, structure)
-        }, modifier = Modifier.fillMaxWidth().height(54.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
-            shape = RoundedCornerShape(14.dp)) {
-            Text(if (language == "English") "♫  Generate English Lyrics" else "♫  Generate Indonesian Lyrics", fontWeight = FontWeight.Bold)
+            apiStatus = "Lirik dibuat menggunakan generator offline."
+        }, modifier = Modifier.fillMaxWidth(), enabled = !isGenerating) {
+            Text("Generate Offline (Tanpa API)")
         }
 
         if (lyric.isNotBlank()) {
