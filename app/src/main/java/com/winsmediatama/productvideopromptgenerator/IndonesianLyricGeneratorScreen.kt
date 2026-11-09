@@ -27,6 +27,7 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
     var vocal by remember { mutableStateOf("Pria") }
     var structure by remember { mutableStateOf("Intro, Verse, Pre-Chorus, Chorus, Verse 2, Bridge, Final Chorus, Outro") }
     var lyric by remember { mutableStateOf("") }
+    var generationIndex by remember { mutableIntStateOf(0) }
 
     Column(
         Modifier.fillMaxSize().background(StudioBackground).navigationBarsPadding()
@@ -50,7 +51,8 @@ fun IndonesianLyricGeneratorScreen(nav: NavHostController) {
         )) { structure = it }
 
         Button(onClick = {
-            lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure)
+            generationIndex += 1
+            lyric = buildIndonesianLyric(title, theme, genre, mood, vocal, structure, generationIndex)
         }, modifier = Modifier.fillMaxWidth().height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StudioCyan, contentColor = StudioBackground),
             shape = RoundedCornerShape(14.dp)) {
@@ -93,7 +95,8 @@ private fun buildIndonesianLyric(
     genre: String,
     mood: String,
     vocal: String,
-    structure: String
+    structure: String,
+    variation: Int
 ): String {
     val songTitle = title.trim().ifBlank { "Tanpa Judul" }
     val story = theme.trim().ifBlank { "perjalanan hidup dan harapan" }
@@ -103,24 +106,50 @@ private fun buildIndonesianLyric(
         "Paduan suara" -> "lead vokal dengan harmoni paduan suara"
         else -> "vokal pria, hangat dan penuh penghayatan"
     }
-    val sections = listOf(
-        Triple("[INTRO]", "[Emosi: hening, merenung] [Vokal: napas lembut, hampir berbisik] [Musik: piano solo atau petikan gitar, ambience tipis]", "(lirih) Di antara sunyi, kusebut namamu"),
-        Triple("[VERSE 1]", "[Emosi: rapuh, jujur, menahan air mata] [Vokal: intim, dekat dengan mikrofon, artikulasi jelas] [Musik: piano lembut, pad tipis]", "(lembut) Ada cerita yang kusimpan sendiri"),
-        Triple("[VERSE 1 – LANJUTAN]", "[Emosi: rindu mulai terasa] [Vokal: sedikit bergetar, akhir kalimat ditahan] [Musik: gitar akustik masuk perlahan]", "(tertahan) Tentang $story yang belum usai"),
-        Triple("[PRE-CHORUS]", "[Emosi: gelisah berubah menjadi keberanian] [Vokal: intensitas naik bertahap, nada semakin terbuka] [Musik: strings mulai membangun, tom lembut]", "(menanjak) Bila malam kembali menguji langkahku"),
-        Triple("[CHORUS / REFF]", "[Emosi: ledakan perasaan, pedih sekaligus penuh harapan] [Vokal: kuat, terbuka, nada panjang pada kata terakhir] [Musik: drum penuh, bass hangat, strings lebar]", "(penuh tenaga) Kan kujaga cahaya di dalam dada"),
-        Triple("[CHORUS – LANJUTAN]", "[Emosi: puncak rasa, tulus dan menyentuh] [Vokal: belting terkontrol, harmoni vokal pada baris akhir] [Musik: orkestrasi melebar]", "(menggema) Meski air mata jatuh, ku tak menyerah"),
-        Triple("[VERSE 2]", "[Emosi: menerima kenyataan, lebih dewasa] [Vokal: kembali lembut tetapi lebih tegas] [Musik: kick ringan, gitar dan piano tetap dominan]", "(tenang) Kini kupahami arti kehilangan"),
-        Triple("[BRIDGE]", "[Emosi: titik terendah lalu bangkit, sangat emosional] [Vokal: mulai rapuh, naik menuju teriakan tertahan] [Musik: instrumen turun sesaat, lalu crescendo strings dan drum]", "(nyaris berbisik) Jika esok tak seperti yang kuminta"),
-        Triple("[EMOTIONAL PEAK]", "[Emosi: klimaks paling menyayat, pelepasan seluruh beban] [Vokal: high note atau belting emosional, vibrato alami, jangan berlebihan] [Musik: full orchestra, cymbal swell, drum besar]", "(pecah dalam rasa) Dengarlah hati yang tak pernah berhenti berharap"),
-        Triple("[FINAL CHORUS]", "[Emosi: kemenangan batin, haru dan lega] [Vokal: paling kuat, harmoni bertumpuk, ad-lib opsional di akhir] [Musik: full band dan strings sinematik]", "(megah dan tulus) Kan kujaga cahaya di dalam dada"),
-        Triple("[OUTRO]", "[Emosi: damai, ikhlas, menyisakan harapan] [Vokal: turun menjadi lembut, kalimat terakhir hampir berbisik] [Musik: piano kembali solo, instrumen fade out]", "(perlahan) Dan kutemukan terang di ujung doa")
+
+    // Each lyric section has exactly four sung lines. Rotate complete stanza variants
+    // on every tap so consecutive generations do not repeat the same lyrics.
+    val verseVariants = listOf(
+        listOf("Di balik senyum kusimpan cerita", "Langkahku lelah menembus gelap", "Ada rindu yang tak bersuara", "Menunggu pagi membuka harap"),
+        listOf("Pernah kutanya pada semesta", "Mengapa jalan terasa panjang", "Namun di dada masih menyala", "Sebuah keyakinan untuk bertahan"),
+        listOf("Kutatap jejak yang kian menjauh", "Namamu hadir di sela waktu", "Meski kenyataan membuatku rapuh", "Tak kubiarkan mimpi berlalu")
     )
-    val chosen = when {
-        structure.startsWith("Intro, Verse 1") -> listOf(0, 1, 4, 6, 4, 7, 8, 9, 10)
-        structure.startsWith("Intro, Verse, Reff") -> listOf(0, 1, 4, 6, 4, 7, 8, 9, 10)
-        else -> sections.indices.toList()
+    val verseTwoVariants = listOf(
+        listOf("Kini kupeluk semua kenangan", "Tak lagi kuhindari kenyataan", "Luka mengajariku bertahan", "Dan tumbuh kuat perlahan-lahan"),
+        listOf("Hari berganti membawa makna", "Yang hilang tak harus kulupakan", "Kusimpan baik setiap cerita", "Sebagai alasan untuk berjalan"),
+        listOf("Bila esok kembali menguji", "Kan kuhadapi tanpa berlari", "Sebab hatiku mulai mengerti", "Harapan tumbuh dari dalam diri")
+    )
+    val chorusVariants = listOf(
+        listOf("Bawalah doaku menembus malam", "Jangan biarkan cahaya tenggelam", "Walau air mata jatuh perlahan", "Hatiku tetap memilih bertahan"),
+        listOf("Aku percaya badai kan reda", "Ada cahaya di balik derita", "Meski dunia tak selalu ramah", "Cinta dan harap takkan menyerah"),
+        listOf("Dengarlah suara dari jiwa", "Yang terus memanggil penuh percaya", "Biar waktu menjawab semua", "Kita kan menemukan jalannya")
+    )
+    val bridgeVariants = listOf(
+        listOf("Jika kakiku tak kuat berdiri", "Ingatkan aku alasan berlari", "Di titik gelap paling sunyi", "Masih ada kasih yang menemani"),
+        listOf("Andai semua harus kulepas", "Biarkan doa menjadi nafas", "Saat seluruh pintu terasa tertutup", "Keyakinan menjaga langkahku"),
+        listOf("Tak perlu dunia memahami", "Cukup cahaya tetap di hati", "Dari serpihan kubangun lagi", "Menjadi diriku yang lebih berani")
+    )
+    val outroVariants = listOf(
+        listOf("Kini kusandarkan segala cerita", "Pada Yang Maha Menjaga", "Esok kan kusambut dengan percaya", "Sebab harapan masih menyala"),
+        listOf("Bila malam datang kembali", "Takkan kubiarkan hati sendiri", "Doa menjadi teman abadi", "Menuntun langkah sampai nanti"),
+        listOf("Kulepas resah bersama angin", "Kuterima takdir dengan yakin", "Di ujung doa kutemukan arti", "Untuk mencintai dan berdiri")
+    )
+    val index = Math.floorMod(variation - 1, verseVariants.size)
+    val sections = listOf(
+        Triple("[VERSE 1]", "[Emosi: intim, rapuh, mulai bercerita] [Vokal: lembut dan dekat] [Musik: piano/gitar minimal]", verseVariants[index]),
+        Triple("[PRE-CHORUS]", "[Emosi: ketegangan dan harapan mulai naik] [Vokal: intensitas bertahap] [Musik: strings dan perkusi perlahan masuk]", listOf("Kucoba berdiri sekali lagi", "Meski bayang ragu mengikuti", "Kutarik nafas, kuteguhkan hati", "Sebentar lagi terang menanti")),
+        Triple("[CHORUS / REFF]", "[Emosi: ledakan rasa dan pesan utama lagu] [Vokal: kuat, terbuka, nada panjang pada baris akhir] [Musik: full band dan strings lebar]", chorusVariants[index]),
+        Triple("[VERSE 2]", "[Emosi: lebih dewasa dan menerima] [Vokal: lembut tetapi tegas] [Musik: groove ringan]", verseTwoVariants[index]),
+        Triple("[BRIDGE]", "[Emosi: titik terendah berubah menjadi kebangkitan] [Vokal: mulai lirih lalu menguat] [Musik: drop sesaat lalu crescendo]", bridgeVariants[index]),
+        Triple("[FINAL CHORUS]", "[Emosi: klimaks, lega dan penuh keyakinan] [Vokal: paling kuat, harmoni bertumpuk] [Musik: full orchestra/band]", chorusVariants[(index + 1) % chorusVariants.size]),
+        Triple("[OUTRO]", "[Emosi: damai dan ikhlas] [Vokal: turun lembut] [Musik: piano atau gitar fade out]", outroVariants[index])
+    )
+    val selectedSections = when {
+        structure.startsWith("Intro, Verse 1") -> sections
+        structure.startsWith("Intro, Verse, Reff") -> sections
+        else -> sections
     }
+
     return buildString {
         appendLine("TITLE: $songTitle")
         appendLine("LANGUAGE: Bahasa Indonesia")
@@ -128,25 +157,26 @@ private fun buildIndonesianLyric(
         appendLine("PERFORMANCE DIRECTION: $vocalCue")
         appendLine("STORY THEME: $story")
         appendLine()
-        chosen.forEachIndexed { index, sectionIndex ->
-            val section = sections[sectionIndex]
+        appendLine("[INTRO]")
+        appendLine("[Emosi: hening dan mengundang pendengar] [Musik: piano atau petikan gitar solo]")
+        appendLine("(instrumental intro)")
+        appendLine()
+        selectedSections.forEach { section ->
             appendLine(section.first)
             appendLine(section.second)
-            appendLine(section.third)
-            if (sectionIndex == 1) appendLine("(jujur, menahan tangis) Tak semua luka mampu kuceritakan")
-            if (sectionIndex == 2) appendLine("(lirih, penuh rindu) Namun namamu tinggal di setiap doa")
-            if (sectionIndex == 3) appendLine("(semakin kuat) Dan kuberdiri walau dunia meragukan")
-            if (sectionIndex == 4) appendLine("(emosi terbuka) Biar waktu menjawab semua air mata")
-            if (sectionIndex == 5) appendLine("(harmoni naik) Sebab harapan tak pernah benar-benar sirna")
-            if (sectionIndex == 6) appendLine("(hangat) Tak semua perpisahan berarti kehilangan")
-            if (sectionIndex == 7) appendLine("(suara bergetar) Masih ada alasan untuk melangkah")
-            if (sectionIndex == 8) appendLine("(klimaks, nada tinggi) Inilah suaraku, inilah seluruh rasaku")
-            if (sectionIndex == 9) appendLine("(harmoni penuh) Biar waktu menjawab semua air mata")
-            if (sectionIndex == 10) appendLine("(fade, sangat lembut) Kuserahkan kisah ini pada Yang Menjaga")
+            section.third.forEachIndexed { lineIndex, line ->
+                val delivery = when (lineIndex) {
+                    0 -> "(lembut) "
+                    1 -> "(mengalir) "
+                    2 -> "(semakin terasa) "
+                    else -> "(ekspresif) "
+                }
+                appendLine(delivery + line)
+            }
             appendLine()
         }
         appendLine("[PRODUCTION NOTE]")
-        appendLine("[Tempo: sesuaikan dengan genre $genre] [Dinamika: bangun perlahan menuju emotional peak, beri jeda sebelum final chorus]")
-        appendLine("[Catatan: semua cue adalah arahan performa/aransemen, bukan bagian lirik yang dinyanyikan.]")
+        appendLine("[Tempo: sesuaikan dengan genre $genre] [Dinamika: bangun bertahap menuju final chorus]")
+        appendLine("[Tema: $story] [Catatan: cue dalam tanda kurung siku adalah arahan performa, bukan lirik yang dinyanyikan.]")
     }
 }
