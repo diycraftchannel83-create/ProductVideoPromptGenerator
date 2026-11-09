@@ -171,7 +171,7 @@ private fun buildIndonesianLyric(
     val index = Math.floorMod(variation - 1, verseVariants.size)
     val sections = listOf(
         Triple("[VERSE 1]", "[Emosi: intim, rapuh, mulai bercerita] [Vokal: lembut dan dekat] [Musik: piano/gitar minimal]", activeVerse[index]),
-        Triple("[PRE-CHORUS]", "[Emosi: ketegangan dan harapan mulai naik] [Vokal: intensitas bertahap] [Musik: strings dan perkusi perlahan masuk]", listOf("Kucoba berdiri sekali lagi", "Meski bayang ragu mengikuti", "Kutarik nafas, kuteguhkan hati", "Sebentar lagi terang menanti")),
+        Triple("[PRE-CHORUS]", if (useEnglish) "[Emotion: tension and hope are rising] [Vocal: gradually building intensity] [Music: strings and percussion slowly enter]" else "[Emosi: ketegangan dan harapan mulai naik] [Vokal: intensitas bertahap] [Musik: strings dan perkusi perlahan masuk]", if (useEnglish) listOf("I try to stand up once again", "Though shadows follow where I go", "I breathe in deep and face the pain", "A little light begins to glow") else listOf("Kucoba berdiri sekali lagi", "Meski bayang ragu mengikuti", "Kutarik nafas, kuteguhkan hati", "Sebentar lagi terang menanti")),
         Triple("[CHORUS / REFF]", "[Emosi: ledakan rasa dan pesan utama lagu] [Vokal: kuat, terbuka, nada panjang pada baris akhir] [Musik: full band dan strings lebar]", activeChorus[index]),
         Triple("[VERSE 2]", "[Emosi: lebih dewasa dan menerima] [Vokal: lembut tetapi tegas] [Musik: groove ringan]", activeVerseTwo[index]),
         Triple("[BRIDGE]", "[Emosi: titik terendah berubah menjadi kebangkitan] [Vokal: mulai lirih lalu menguat] [Musik: drop sesaat lalu crescendo]", activeBridge[index]),
